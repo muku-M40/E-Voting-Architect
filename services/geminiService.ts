@@ -6,10 +6,9 @@ import { AuditResult } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const auditSmartContract = async (code: string): Promise<AuditResult> => {
-  // Use gemini-3-pro-preview for complex reasoning and coding tasks.
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Audit the following Solidity smart contract for common vulnerabilities like Reentrancy, Gas Limit issues, Integer Overflow (if applicable for version), and Access Control.
+    contents: `Audit the following Solidity smart contract for common vulnerabilities like Reentrancy, Gas Limit issues, Integer Overflow, Access Control, and Logic Flaws.
     
     Code:
     ${code}`,
@@ -39,11 +38,8 @@ export const auditSmartContract = async (code: string): Promise<AuditResult> => 
     }
   });
 
-  const text = response.text || '{}';
   try {
-    // Robust parsing of JSON response which might be wrapped in markdown blocks
-    const cleanJson = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-    return JSON.parse(cleanJson);
+    return JSON.parse(response.text || '{}');
   } catch (e) {
     console.error("Failed to parse audit result", e);
     return {
@@ -55,13 +51,17 @@ export const auditSmartContract = async (code: string): Promise<AuditResult> => 
 };
 
 export const getArchitecturalAdvice = async (topic: string): Promise<string> => {
-  // Use gemini-3-flash-preview for general technical advice.
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `As a Blockchain Architect, provide specific, technical advice for building a decentralized e-voting system focusing on: ${topic}. 
-    Focus on practical implementations, cryptography (ZKP, Ring Signatures), and scalability.`,
+    model: 'gemini-3-pro-preview',
+    contents: `As a Lead Blockchain Architect, provide a detailed technical blueprint for: ${topic}. 
+    Include:
+    1. System Components
+    2. Cryptographic primitives (e.g., ZK-SNARKs, Linkable Ring Signatures)
+    3. Consensus considerations
+    4. Data availability strategies
+    Use Markdown formatting with clear headers.`,
     config: {
-      systemInstruction: "You are a world-class blockchain architect. Be concise, technical, and professional."
+      systemInstruction: "You are a world-class blockchain architect specializing in secure e-voting systems. Be technical, rigorous, and practical."
     }
   });
 
@@ -69,10 +69,16 @@ export const getArchitecturalAdvice = async (topic: string): Promise<string> => 
 };
 
 export const generateSmartContract = async (requirements: string): Promise<string> => {
-  // Use gemini-3-pro-preview for production-ready code generation.
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Generate a production-ready Solidity smart contract for a voting system based on these requirements: ${requirements}. Include comments explaining security choices.`
+    contents: `Generate a production-ready, highly secure Solidity smart contract for a blockchain voting system.
+    Requirements: ${requirements}
+    
+    Rules:
+    - Include OpenZeppelin-style security patterns.
+    - Add detailed NatSpec comments.
+    - Ensure it is gas-optimized.
+    - Return ONLY the Solidity code block.`,
   });
 
   return response.text || "";
