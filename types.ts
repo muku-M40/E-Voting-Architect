@@ -5,6 +5,8 @@ export interface Candidate {
   party: string;
   votes: number;
   avatar: string;
+  // Index signature to satisfy Recharts' ChartDataInput requirements
+  [key: string]: string | number | undefined;
 }
 
 export interface VoteRecord {
@@ -15,6 +17,8 @@ export interface VoteRecord {
   blockNumber: number;
   previousHash: string;
   hash: string;
+  zkProofHash?: string; // Simulated ZK-SNARK proof hash
+  status: 'confirmed' | 'pending' | 'failed';
 }
 
 export interface AuditIssue {

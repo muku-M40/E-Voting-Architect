@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { VoteRecord } from '../types';
-import { Shield, Link as LinkIcon, Box, Activity, Cpu } from 'lucide-react';
+import { Shield, Link as LinkIcon, Box, Activity, Cpu, Fingerprint, Lock } from 'lucide-react';
 
 interface Props {
   ledger: VoteRecord[];
@@ -26,8 +26,8 @@ const BlockchainVisualizer: React.FC<Props> = ({ ledger }) => {
             <p className="text-lg font-mono font-bold text-indigo-600">{ledger.length}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Avg Block Time</p>
-            <p className="text-lg font-mono font-bold text-emerald-600">12.4s</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Finality</p>
+            <p className="text-lg font-mono font-bold text-emerald-600">Secure</p>
           </div>
         </div>
       </div>
@@ -45,12 +45,12 @@ const BlockchainVisualizer: React.FC<Props> = ({ ledger }) => {
                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="mono text-xs font-bold text-indigo-600">#{(block.blockNumber).toString().padStart(6, '0')}</span>
-                    <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold uppercase">Mined</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Mined & Proven</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1 text-slate-400">
-                      <Activity size={12} />
-                      <span className="text-[10px] mono">244k Gas</span>
+                      <Lock size={10} />
+                      <span className="text-[10px] font-bold">ZK-SNARK</span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-medium">
                       {new Date(block.timestamp).toLocaleTimeString()}
@@ -62,8 +62,8 @@ const BlockchainVisualizer: React.FC<Props> = ({ ledger }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Voter Address</label>
-                        <Shield size={10} className="text-emerald-500" />
+                        <label className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Voter Commitment</label>
+                        <Fingerprint size={10} className="text-indigo-400" />
                       </div>
                       <div className="mono text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-slate-600 break-all leading-relaxed">
                         {block.voterHash}
@@ -71,11 +71,11 @@ const BlockchainVisualizer: React.FC<Props> = ({ ledger }) => {
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">State Merkle Root</label>
-                        <Cpu size={10} className="text-indigo-400" />
+                        <label className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">ZK-Proof Hash</label>
+                        <Shield size={10} className="text-emerald-500" />
                       </div>
-                      <div className="mono text-[11px] bg-indigo-50/30 p-2.5 rounded-xl border border-indigo-100/50 text-indigo-700 break-all leading-relaxed">
-                        0x{block.hash.substring(0, 42)}
+                      <div className="mono text-[11px] bg-emerald-50/30 p-2.5 rounded-xl border border-emerald-100/50 text-emerald-700 break-all leading-relaxed">
+                        {block.zkProofHash || 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -84,12 +84,12 @@ const BlockchainVisualizer: React.FC<Props> = ({ ledger }) => {
                     <div className="flex items-center justify-between text-[10px] mono">
                       <div className="flex items-center gap-2">
                          <LinkIcon size={10} className="text-slate-300" />
-                         <span className="text-slate-400 uppercase font-bold">Prev:</span>
-                         <span className="text-slate-500">{block.previousHash.substring(0, 24)}...</span>
+                         <span className="text-slate-400 uppercase font-bold">Block Hash:</span>
+                         <span className="text-slate-500">{block.hash.substring(0, 32)}...</span>
                       </div>
-                      <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md">
+                      <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md font-bold uppercase tracking-tighter text-[8px]">
                         <Shield size={10} />
-                        <span>Valid Signature</span>
+                        <span>Consensus Validated</span>
                       </div>
                     </div>
                   </div>

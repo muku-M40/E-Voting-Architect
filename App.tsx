@@ -7,7 +7,8 @@ import {
 import { 
   Send, User, Search, AlertTriangle, CheckCircle, 
   Code, RefreshCw, Sparkles, BrainCircuit, ExternalLink,
-  ChevronRight, Lock, Vote, ShieldCheck, Database, Play, Pause, Zap, Terminal, Copy
+  ChevronRight, Lock, Vote, ShieldCheck, Database, Play, Pause, Zap, Terminal, Copy,
+  Fingerprint, FileText, Download, Shield, Activity
 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import BlockchainVisualizer from './components/BlockchainVisualizer';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   const [candidates, setCandidates] = useState<Candidate[]>(INITIAL_CANDIDATES);
   const [ledger, setLedger] = useState<VoteRecord[]>([]);
   const [isCasting, setIsCasting] = useState(false);
+  const [zkStatus, setZkStatus] = useState<'idle' | 'generating' | 'verifying' | 'complete'>('idle');
   const [voterId, setVoterId] = useState('');
   const [isSimulating, setIsSimulating] = useState(false);
   const simInterval = useRef<number | null>(null);
@@ -66,7 +68,9 @@ const App: React.FC = () => {
         timestamp,
         blockNumber: i + 1,
         previousHash: prevHash,
-        hash: blockHash
+        hash: blockHash,
+        zkProofHash: `zk_0x${crypto.randomUUID().substring(0, 32).replace(/-/g, '')}`,
+        status: 'confirmed'
       });
       prevHash = blockHash;
     }
@@ -89,14 +93,16 @@ const App: React.FC = () => {
           timestamp: Date.now(),
           blockNumber: (ledger.length || 0) + 1,
           previousHash: prevHash,
-          hash: blockHash
+          hash: blockHash,
+          zkProofHash: `zk_0x${crypto.randomUUID().substring(0, 32).replace(/-/g, '')}`,
+          status: 'confirmed'
         };
 
         setLedger(prev => [...prev, newVote]);
         setCandidates(prev => prev.map(c => 
           c.id === randomCandidate.id ? { ...c, votes: c.votes + 1 } : c
         ));
-      }, 5000);
+      }, 8000);
     } else {
       if (simInterval.current) clearInterval(simInterval.current);
     }
@@ -110,8 +116,17 @@ const App: React.FC = () => {
     }
     
     setIsCasting(true);
+    setZkStatus('generating');
     
-    // Simulate mining delay
+    // Step 1: Simulated ZK-Proof Generation
+    await new Promise(r => setTimeout(r, 1500));
+    setZkStatus('verifying');
+    
+    // Step 2: On-chain Verification
+    await new Promise(r => setTimeout(r, 1000));
+    setZkStatus('complete');
+    
+    // Step 3: Block Minting
     setTimeout(() => {
       const lastBlock = ledger[ledger.length - 1];
       const prevHash = lastBlock?.hash || "0".repeat(64);
@@ -124,7 +139,9 @@ const App: React.FC = () => {
         timestamp: Date.now(),
         blockNumber: ledger.length + 1,
         previousHash: prevHash,
-        hash: blockHash
+        hash: blockHash,
+        zkProofHash: `zk_0x${crypto.randomUUID().substring(0, 32).replace(/-/g, '')}`,
+        status: 'confirmed'
       };
 
       setLedger(prev => [...prev, newVote]);
@@ -132,9 +149,10 @@ const App: React.FC = () => {
         c.id === candidateId ? { ...c, votes: c.votes + 1 } : c
       ));
       setIsCasting(false);
+      setZkStatus('idle');
       setVoterId('');
       setView('dashboard');
-    }, 1500);
+    }, 800);
   }, [ledger, voterId]);
 
   const handleAudit = async () => {
@@ -170,13 +188,37 @@ const App: React.FC = () => {
   };
 
   const handleSearchTx = () => {
-    const found = ledger.find(v => v.voterHash.toLowerCase().includes(txSearch.toLowerCase()) || v.hash.toLowerCase().includes(txSearch.toLowerCase()));
+    const found = ledger.find(v => 
+      v.voterHash.toLowerCase().includes(txSearch.toLowerCase()) || 
+      v.hash.toLowerCase().includes(txSearch.toLowerCase()) ||
+      v.zkProofHash?.toLowerCase().includes(txSearch.toLowerCase())
+    );
     setSearchResult(found || null);
-    if (!found) alert("Transaction not found in the current ledger.");
+    if (!found) alert("Transaction or Proof Hash not found in the current ledger.");
   };
 
   const renderDashboard = () => (
     <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Metrics Header */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {[
+          { label: "Security Score", value: "99.8%", icon: Shield, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Node Count", value: "2,412", icon: Database, color: "text-indigo-600", bg: "bg-indigo-50" },
+          { label: "Avg Finality", value: "1.2s", icon: Zap, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "ZK-Proofs", value: ledger.length.toLocaleString(), icon: Lock, color: "text-violet-600", bg: "bg-violet-50" },
+        ].map((m, i) => (
+          <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4">
+            <div className={`w-12 h-12 ${m.bg} ${m.color} rounded-2xl flex items-center justify-center`}>
+              <m.icon size={22} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.label}</p>
+              <p className="text-xl font-black text-slate-900">{m.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
            <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
@@ -200,6 +242,7 @@ const App: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-[2rem] p-10 border border-slate-200 shadow-sm relative overflow-hidden">
+          {/* Fix: Added Activity to lucide-react imports */}
           <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
             <Activity size={200} />
           </div>
@@ -214,6 +257,7 @@ const App: React.FC = () => {
           </div>
           <div className="h-80 relative z-10">
             <ResponsiveContainer width="100%" height="100%">
+              {/* Fix: Candidate interface updated with index signature in types.ts */}
               <BarChart data={candidates}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} dy={10} />
@@ -271,39 +315,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {candidates.map((candidate) => (
-          <div key={candidate.id} className="bg-white rounded-[2rem] p-8 border border-slate-200 hover:border-indigo-400 transition-all hover:shadow-2xl hover:-translate-y-1 group relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -mr-8 -mt-8 opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
-            <div className="flex items-center gap-5 mb-8 relative z-10">
-              <div className="relative">
-                <img src={candidate.avatar} alt={candidate.name} className="w-16 h-16 rounded-2xl object-cover shadow-md border-2 border-white" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-4 border-white"></div>
-              </div>
-              <div>
-                <h3 className="font-black text-slate-900 text-lg leading-tight">{candidate.name}</h3>
-                <p className="text-xs text-indigo-600 font-bold uppercase tracking-widest mt-1">{candidate.party}</p>
-              </div>
-            </div>
-            <div className="flex items-end justify-between relative z-10">
-              <div>
-                <p className="text-3xl font-black text-slate-900 tracking-tight">{candidate.votes.toLocaleString()}</p>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Confirmed Blocks</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setVoterId('');
-                  setView('vote');
-                }}
-                className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"
-              >
-                <ChevronRight size={24} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 
@@ -341,6 +352,23 @@ const App: React.FC = () => {
         </div>
         
         <div className="relative z-10">
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              "Zero-Knowledge Proofs",
+              "Account Abstraction",
+              "L2 Rollup Design",
+              "Social Recovery Logic",
+              "Homomorphic Tallying"
+            ].map((q) => (
+              <button 
+                key={q}
+                onClick={() => setAdvicePrompt(`Design a ${q} mechanism for a national e-voting system.`)}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
           <textarea 
             value={advicePrompt}
             onChange={(e) => setAdvicePrompt(e.target.value)}
@@ -389,21 +417,184 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-12">
-        {[
-          { icon: ShieldCheck, title: "Zero-Knowledge Proofs", desc: "Integrate ZK-SNARKs for complete ballot privacy while maintaining auditability.", color: "text-indigo-600" },
-          { icon: Terminal, title: "EVM Optimization", desc: "Our AI generates gas-efficient Solidity logic optimized for Layer 2 rollups.", color: "text-emerald-600" },
-          { icon: Search, title: "Formal Verification", desc: "Mathematical proof that your code follows its specification without side effects.", color: "text-amber-600" },
-        ].map((feat, i) => (
-          <div key={i} className="bg-white border border-slate-200 rounded-3xl p-8 hover:border-indigo-200 transition-all group">
-            <div className={`w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${feat.color}`}>
-              <feat.icon size={24} />
-            </div>
-            <h4 className="font-bold text-slate-900 mb-2">{feat.title}</h4>
-            <p className="text-xs text-slate-500 leading-relaxed font-medium">{feat.desc}</p>
+  const renderVote = () => (
+    <div className="max-w-3xl mx-auto py-12 animate-in slide-in-from-bottom-8 duration-700">
+      <div className="bg-white rounded-[3rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
+        {isCasting && (
+          <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-300">
+             <div className="relative mb-8">
+                <div className="w-24 h-24 border-4 border-indigo-100 rounded-full animate-spin border-t-indigo-600"></div>
+                <div className="absolute inset-0 flex items-center justify-center text-indigo-600">
+                   {zkStatus === 'generating' ? <Fingerprint size={32} /> : <ShieldCheck size={32} />}
+                </div>
+             </div>
+             <h3 className="text-2xl font-black text-slate-900 mb-2">
+                {zkStatus === 'generating' ? "Generating ZK-Proof..." : "Verifying Anonymity..."}
+             </h3>
+             <p className="text-slate-500 max-w-xs">
+                {zkStatus === 'generating' 
+                  ? "We are creating a non-interactive zero-knowledge proof to protect your identity."
+                  : "Connecting to decentralized nodes to verify ballot validity without revealing your choice."}
+             </p>
+             <div className="mt-8 w-64 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full bg-indigo-600 transition-all duration-1000 ${zkStatus === 'generating' ? 'w-1/2' : 'w-full'}`}></div>
+             </div>
           </div>
-        ))}
+        )}
+
+        <div className="absolute top-0 right-0 p-12 text-slate-50/50 pointer-events-none">
+          <Vote size={180} />
+        </div>
+        
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-indigo-50 text-indigo-700 rounded-2xl text-xs font-black uppercase tracking-widest mb-10 border border-indigo-100">
+            <Lock size={16} />
+            Secure Tunnel Active
+          </div>
+          
+          <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Cast Your Secure Ballot</h2>
+          <p className="text-slate-500 font-medium mb-12 text-lg">Your identity is masked using Ring Confidential Transactions (RCT).</p>
+
+          <div className="space-y-10">
+            <div className="space-y-4">
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Digital Signature Key</label>
+              <div className="relative group">
+                <input 
+                  type="text" 
+                  value={voterId}
+                  onChange={(e) => setVoterId(e.target.value)}
+                  placeholder="Enter 0x address or signature hash..."
+                  className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none mono text-lg shadow-inner group-hover:border-slate-200"
+                />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-indigo-600 group-focus-within:border-indigo-100 transition-colors">
+                  <User size={18} />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Validated Candidates</label>
+              <div className="grid grid-cols-1 gap-4">
+                {candidates.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleVote(c.id)}
+                    disabled={isCasting}
+                    className="flex items-center justify-between p-6 bg-white border-2 border-slate-100 rounded-[2rem] hover:border-indigo-600 hover:bg-indigo-50/30 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-lg active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="relative">
+                        <img src={c.avatar} className="w-16 h-16 rounded-2xl grayscale group-hover:grayscale-0 transition-all duration-500 shadow-sm" />
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 rounded-full border-4 border-white opacity-0 group-hover:opacity-100 transition-all"></div>
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900 text-lg">{c.name}</p>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{c.party}</p>
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                      <ChevronRight size={24} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderLedger = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 animate-in fade-in duration-700">
+      <div className="lg:col-span-2 space-y-8">
+        <div className="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm">
+          <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Transparency Portal</h2>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verify Your Ballot</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={txSearch}
+                  onChange={(e) => setTxSearch(e.target.value)}
+                  placeholder="TxID, Block, or Proof Hash..."
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm mono shadow-inner"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              </div>
+            </div>
+            <button 
+              onClick={handleSearchTx}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]"
+            >
+              Scan Public Ledger
+            </button>
+          </div>
+
+          {searchResult && (
+            <div className="mt-10 p-8 bg-indigo-950 text-white rounded-[2rem] animate-in zoom-in-95 duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-6 opacity-10">
+                 <Shield size={120} />
+              </div>
+              <div className="flex items-center gap-3 text-indigo-400 font-black text-sm mb-6 uppercase tracking-widest relative z-10">
+                <CheckCircle size={20} />
+                Verification Certificate
+              </div>
+              <div className="space-y-4 relative z-10">
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                  <p className="text-white/40 uppercase font-black text-[9px] tracking-widest mb-1">Block Height</p>
+                  <p className="text-white font-mono font-bold text-lg">#{searchResult.blockNumber}</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                  <p className="text-white/40 uppercase font-black text-[9px] tracking-widest mb-1">ZK-Proof Status</p>
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                     <ShieldCheck size={16} />
+                     <span className="text-xs uppercase tracking-widest">Mathematically Verified</span>
+                  </div>
+                </div>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                  <p className="text-white/40 uppercase font-black text-[9px] tracking-widest mb-1">Proof Commit</p>
+                  <p className="text-indigo-300 font-mono text-[10px] break-all leading-relaxed">{searchResult.zkProofHash}</p>
+                </div>
+                <button className="w-full py-3 bg-white text-indigo-950 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 mt-4 hover:bg-indigo-50 transition-all">
+                  <Download size={14} /> Download Receipt (PDF)
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px]"></div>
+          <div className="flex items-center gap-4 mb-6 relative z-10">
+            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center">
+               <ShieldCheck size={28} />
+            </div>
+            <h3 className="font-black text-xl tracking-tight">Public Verifiability</h3>
+          </div>
+          <p className="text-sm text-slate-400 mb-10 leading-relaxed font-medium relative z-10">
+            ChainVote uses Merkle Trees and ZK-SNARKs. This means anyone can verify that the tally is correct without being able to link a vote to a specific user.
+          </p>
+          <div className="p-6 bg-slate-800 rounded-2xl border border-slate-700 mono text-[11px] relative z-10">
+            <div className="flex items-center justify-between mb-2">
+               <span className="text-slate-500 font-bold">CURRENT_BLOCK</span>
+               <span className="text-emerald-500">#{ledger.length}</span>
+            </div>
+            <div className="h-px bg-slate-700 my-4"></div>
+            <p className="text-slate-500 font-bold mb-1">NETWORK_HASH_RATE</p>
+            <span className="text-indigo-400 break-all block leading-relaxed font-bold">
+              1.24 EH/s
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="lg:col-span-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <BlockchainVisualizer ledger={ledger} />
       </div>
     </div>
   );
@@ -530,160 +721,6 @@ const App: React.FC = () => {
     </div>
   );
 
-  const renderVote = () => (
-    <div className="max-w-3xl mx-auto py-12 animate-in slide-in-from-bottom-8 duration-700">
-      <div className="bg-white rounded-[3rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-12 text-slate-50/50 pointer-events-none">
-          <Vote size={180} />
-        </div>
-        
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-indigo-50 text-indigo-700 rounded-2xl text-xs font-black uppercase tracking-widest mb-10 border border-indigo-100">
-            <Lock size={16} />
-            Secure Tunnel Active
-          </div>
-          
-          <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Cast Your Secure Ballot</h2>
-          <p className="text-slate-500 font-medium mb-12 text-lg">Your identity is masked using Ring Confidential Transactions (RCT).</p>
-
-          <div className="space-y-10">
-            <div className="space-y-4">
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Digital Signature Key</label>
-              <div className="relative group">
-                <input 
-                  type="text" 
-                  value={voterId}
-                  onChange={(e) => setVoterId(e.target.value)}
-                  placeholder="Enter 0x address or signature hash..."
-                  className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none mono text-lg shadow-inner group-hover:border-slate-200"
-                />
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-indigo-600 group-focus-within:border-indigo-100 transition-colors">
-                  <User size={18} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Validated Candidates</label>
-              <div className="grid grid-cols-1 gap-4">
-                {candidates.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => handleVote(c.id)}
-                    disabled={isCasting}
-                    className="flex items-center justify-between p-6 bg-white border-2 border-slate-100 rounded-[2rem] hover:border-indigo-600 hover:bg-indigo-50/30 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-lg active:scale-[0.99]"
-                  >
-                    <div className="flex items-center gap-6">
-                      <div className="relative">
-                        <img src={c.avatar} className="w-16 h-16 rounded-2xl grayscale group-hover:grayscale-0 transition-all duration-500 shadow-sm" />
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 rounded-full border-4 border-white opacity-0 group-hover:opacity-100 transition-all"></div>
-                      </div>
-                      <div>
-                        <p className="font-black text-slate-900 text-lg">{c.name}</p>
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{c.party}</p>
-                      </div>
-                    </div>
-                    {isCasting ? (
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                        <RefreshCw size={24} className="animate-spin text-indigo-600" />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                        <ChevronRight size={24} />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderLedger = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 animate-in fade-in duration-700">
-      <div className="lg:col-span-2 space-y-8">
-        <div className="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm">
-          <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Node Explorer</h2>
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Search Transaction</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value={txSearch}
-                  onChange={(e) => setTxSearch(e.target.value)}
-                  placeholder="TxID or Block Hash..."
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none text-sm mono shadow-inner"
-                />
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              </div>
-            </div>
-            <button 
-              onClick={handleSearchTx}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98]"
-            >
-              Scan Blockchain
-            </button>
-          </div>
-
-          {searchResult && (
-            <div className="mt-10 p-8 bg-emerald-50 border border-emerald-100 rounded-[2rem] animate-in zoom-in-95 duration-300">
-              <div className="flex items-center gap-3 text-emerald-700 font-black text-sm mb-6 uppercase tracking-widest">
-                <CheckCircle size={20} />
-                Block Verified
-              </div>
-              <div className="space-y-5">
-                <div className="p-4 bg-white/50 rounded-2xl border border-emerald-100/50">
-                  <p className="text-slate-400 uppercase font-black text-[9px] tracking-widest mb-1">Timestamp</p>
-                  <p className="text-slate-700 font-bold">{new Date(searchResult.timestamp).toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-white/50 rounded-2xl border border-emerald-100/50">
-                  <p className="text-slate-400 uppercase font-black text-[9px] tracking-widest mb-1">Block Height</p>
-                  <p className="text-slate-700 font-mono font-bold">#{searchResult.blockNumber}</p>
-                </div>
-                <div className="p-4 bg-white/50 rounded-2xl border border-emerald-100/50">
-                  <p className="text-slate-400 uppercase font-black text-[9px] tracking-widest mb-1">State Root</p>
-                  <p className="text-slate-700 font-mono text-[11px] break-all leading-relaxed">{searchResult.hash}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl">
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px]"></div>
-          <div className="flex items-center gap-4 mb-6 relative z-10">
-            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center">
-               <ShieldCheck size={28} />
-            </div>
-            <h3 className="font-black text-xl tracking-tight">Cryptographic Proof</h3>
-          </div>
-          <p className="text-sm text-slate-400 mb-10 leading-relaxed font-medium relative z-10">
-            Every vote is encapsulated in a block that carries the hash of the preceding block, creating a chain that is mathematically impossible to alter without recalculating the entire history of the network.
-          </p>
-          <div className="p-6 bg-slate-800 rounded-2xl border border-slate-700 mono text-[11px] relative z-10">
-            <div className="flex items-center justify-between mb-2">
-               <span className="text-slate-500 font-bold">GENESIS_HASH</span>
-               <span className="text-emerald-500">0x00000000...</span>
-            </div>
-            <div className="h-px bg-slate-700 my-4"></div>
-            <p className="text-slate-500 font-bold mb-1">CURRENT_MERKLE_ROOT</p>
-            <span className="text-indigo-400 break-all block leading-relaxed">
-              {ledger[ledger.length-1]?.hash || 'SYNCING...'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:col-span-3 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-        <BlockchainVisualizer ledger={ledger} />
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <Sidebar currentView={view} setView={setView} />
@@ -702,7 +739,7 @@ const App: React.FC = () => {
              <div className="hidden xl:flex items-center gap-4 px-6 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
               <div className="flex flex-col items-end">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Network Status</p>
-                <p className="text-xs font-bold text-slate-700">Sepolia Testnet v4.2</p>
+                <p className="text-xs font-bold text-slate-700">Mainnet Shadow v1.0</p>
               </div>
               <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
             </div>
