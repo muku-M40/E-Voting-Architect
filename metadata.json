@@ -1,0 +1,5 @@
+{
+  "name": "Copy of ChainVote: Blockchain E-Voting Architect",
+  "description": "A high-fidelity dashboard for architecting, auditing, and simulating blockchain-based e-voting systems, powered by Gemini 3.0. Features real-time auditing, system design suggestions, and simulated on-chain vote tallying.",
+  "requestFramePermissions": []
+}
