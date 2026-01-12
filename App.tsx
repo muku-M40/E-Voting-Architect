@@ -5,15 +5,16 @@ import {
   PieChart, Pie
 } from 'recharts';
 import { 
-  Send, User, Search, AlertTriangle, CheckCircle, 
+  Send, User as UserIcon, Search, AlertTriangle, CheckCircle, 
   Code, RefreshCw, Sparkles, BrainCircuit, ExternalLink,
   ChevronRight, Lock, Vote, ShieldCheck, Database, Play, Pause, Zap, Terminal, Copy,
   Fingerprint, FileText, Download, Shield, Activity
 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import BlockchainVisualizer from './components/BlockchainVisualizer';
+import AuthView from './components/AuthView';
 import { 
-  Candidate, VoteRecord, ViewType, AuditResult, AuditIssue 
+  Candidate, VoteRecord, ViewType, AuditResult, AuditIssue, User
 } from './types';
 import { 
   INITIAL_CANDIDATES, SMART_CONTRACT_TEMPLATE 
@@ -36,6 +37,9 @@ const App: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const simInterval = useRef<number | null>(null);
   
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+
   // Auditor State
   const [contractCode, setContractCode] = useState(SMART_CONTRACT_TEMPLATE);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
@@ -79,7 +83,7 @@ const App: React.FC = () => {
 
   // Simulation Logic
   useEffect(() => {
-    if (isSimulating) {
+    if (isSimulating && user) {
       simInterval.current = window.setInterval(() => {
         const randomCandidate = candidates[Math.floor(Math.random() * candidates.length)];
         const lastBlock = ledger[ledger.length - 1];
@@ -107,7 +111,7 @@ const App: React.FC = () => {
       if (simInterval.current) clearInterval(simInterval.current);
     }
     return () => { if (simInterval.current) clearInterval(simInterval.current); };
-  }, [isSimulating, ledger, candidates]);
+  }, [isSimulating, ledger, candidates, user]);
 
   const handleVote = useCallback(async (candidateId: string) => {
     if (!voterId) {
@@ -197,6 +201,15 @@ const App: React.FC = () => {
     if (!found) alert("Transaction or Proof Hash not found in the current ledger.");
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setIsSimulating(false);
+  };
+
+  if (!user) {
+    return <AuthView onLogin={(u) => { setUser(u); setView('dashboard'); }} />;
+  }
+
   const renderDashboard = () => (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Metrics Header */}
@@ -242,7 +255,6 @@ const App: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-[2rem] p-10 border border-slate-200 shadow-sm relative overflow-hidden">
-          {/* Fix: Added Activity to lucide-react imports */}
           <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
             <Activity size={200} />
           </div>
@@ -257,7 +269,6 @@ const App: React.FC = () => {
           </div>
           <div className="h-80 relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              {/* Fix: Candidate interface updated with index signature in types.ts */}
               <BarChart data={candidates}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 600}} dy={10} />
@@ -470,7 +481,7 @@ const App: React.FC = () => {
                   className="w-full pl-16 pr-6 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none mono text-lg shadow-inner group-hover:border-slate-200"
                 />
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-indigo-600 group-focus-within:border-indigo-100 transition-colors">
-                  <User size={18} />
+                  <UserIcon size={18} />
                 </div>
               </div>
             </div>
@@ -723,7 +734,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar currentView={view} setView={setView} />
+      <Sidebar 
+        currentView={view} 
+        setView={setView} 
+        user={user} 
+        onLogout={handleLogout} 
+      />
       
       <main className="flex-1 ml-64 p-10 lg:p-16 relative overflow-x-hidden">
         <header className="flex flex-wrap items-center justify-between mb-16 gap-8">
@@ -744,7 +760,7 @@ const App: React.FC = () => {
               <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
             </div>
             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black cursor-pointer hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 group">
-              <User size={28} className="group-hover:scale-110 transition-transform" />
+              <UserIcon size={28} className="group-hover:scale-110 transition-transform" />
             </div>
           </div>
         </header>

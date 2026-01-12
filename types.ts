@@ -1,4 +1,12 @@
 
+export interface User {
+  id: string;
+  type: 'web2' | 'web3';
+  identifier: string; // Email or Wallet Address
+  voterId?: string;
+  isVerified: boolean;
+}
+
 export interface Candidate {
   id: string;
   name: string;
@@ -34,4 +42,4 @@ export interface AuditResult {
   securityScore: number;
 }
 
-export type ViewType = 'dashboard' | 'vote' | 'audit' | 'architect' | 'ledger';
+export type ViewType = 'dashboard' | 'vote' | 'audit' | 'architect' | 'ledger' | 'auth';

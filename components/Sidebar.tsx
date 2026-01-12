@@ -1,14 +1,16 @@
 
 import React from 'react';
-import { LayoutDashboard, Vote, ShieldCheck, Cpu, Database, Settings } from 'lucide-react';
-import { ViewType } from '../types';
+import { LayoutDashboard, Vote, ShieldCheck, Cpu, Database, Settings, LogOut, User as UserIcon, Shield } from 'lucide-react';
+import { ViewType, User } from '../types';
 
 interface SidebarProps {
   currentView: ViewType;
   setView: (view: ViewType) => void;
+  user: User | null;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'vote', icon: Vote, label: 'Cast Vote' },
@@ -46,11 +48,40 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         ))}
       </nav>
 
-      <div className="p-4 mt-auto border-t border-slate-800">
-        <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white transition-colors">
-          <Settings size={20} />
-          <span className="font-medium">Settings</span>
-        </button>
+      <div className="mt-auto border-t border-slate-800">
+        {user && (
+          <div className="p-4 bg-slate-900/50">
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                  {user.type === 'web3' ? <Shield size={16} /> : <UserIcon size={16} />}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active {user.type === 'web3' ? 'Wallet' : 'Account'}</p>
+                  <p className="text-xs font-bold text-white truncate">{user.identifier}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Authorized</span>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors text-sm font-medium">
+                <Settings size={18} />
+                Profile Settings
+              </button>
+              <button 
+                onClick={onLogout}
+                className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded-lg transition-all text-sm font-bold"
+              >
+                <LogOut size={18} />
+                Disconnect Session
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
